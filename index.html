@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>井字棋 - 人机对战</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      margin-top: 20px;
+    }
+    #game {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 5px;
+      margin: 20px auto;
+      width: 315px;
+    }
+    .cell {
+      background-color: #fff;
+      border: 2px solid #333;
+      font-size: 2em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    .cell:hover {
+      background-color: #e0e0e0;
+    }
+    #message {
+      font-size: 1.2em;
+      margin: 20px;
+    }
+    #reset {
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>井字棋 - 人机对战</h1>
+  <div id="game">
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
+  <div id="message">你的回合：X</div>
+  <button id="reset">重新开始</button>
+
+  <script>
+    const cells = document.querySelectorAll('.cell');
+    const messageEl = document.getElementById('message');
+    const resetButton = document.getElementById('reset');
+    
+    let board = ["", "", "", "", "", "", "", "", ""];
+    let gameActive = true;
+    // 玩家为 X，电脑为 O
+    const human = "X";
+    const ai = "O";
+
+    // 定义所有可能获胜组合
+    const winningCombos = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    // 更新提示信息
+    function updateMessage(msg) {
+      messageEl.textContent = msg;
+    }
+
+    // 检查当前棋盘是否有获胜者或平局
+    function checkWinner(board) {
+      for (let combo of winningCombos) {
+        const [a, b, c] = combo;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          return board[a];
+        }
+      }
+      return board.includes("") ? null : "draw";
+    }
+
+    // 处理玩家点击事件
+    function handleCellClick(e) {
+      const cell = e.target;
+      const index = cell.getAttribute('data-index');
+      if (board[index] !== "" || !gameActive) return;
+
+      makeMove(index, human);
+      const winner = checkWinner(board);
+      if (winner) {
+        endGame(winner);
+        return;
+      }
+      updateMessage("电脑思考中...");
+      // 延时调用电脑移动，模拟思考时间
+      setTimeout(aiMove, 500);
+    }
+
+    // 在指定位置落子并更新界面
+    function makeMove(index, player) {
+      board[index] = player;
+      document.querySelector(`.cell[data-index='${index}']`).textContent = player;
+    }
+
+    // 结束游戏
+    function endGame(result) {
+      if (result === "draw") {
+        updateMessage("平局！");
+      } else {
+        updateMessage(result === human ? "你赢了！" : "电脑赢了！");
+      }
+      gameActive = false;
+    }
+
+    // 获取空白位置索引
+    function getAvailableMoves(board) {
+      let moves = [];
+      board.forEach((cell, idx) => {
+        if (cell === "") moves.push(idx);
+      });
+      return moves;
+    }
+
+    // Minimax 算法实现：返回 {score, index}
+    function minimax(newBoard, player) {
+      const availSpots = getAvailableMoves(newBoard);
+      const winner = checkWinner(newBoard);
+      if (winner === human) return { score: -10 };
+      else if (winner === ai) return { score: 10 };
+      else if (availSpots.length === 0) return { score: 0 };
+
+      let moves = [];
+
+      for (let i = 0; i < availSpots.length; i++) {
+        let move = {};
+        move.index = availSpots[i];
+        // 暂存当前空格
+        newBoard[availSpots[i]] = player;
+
+        if (player === ai) {
+          let result = minimax(newBoard, human);
+          move.score = result.score;
+        } else {
+          let result = minimax(newBoard, ai);
+          move.score = result.score;
+        }
+        // 撤销这次操作
+        newBoard[availSpots[i]] = "";
+        moves.push(move);
+      }
+
+      let bestMove;
+      if (player === ai) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score > bestScore) {
+            bestScore = moves[i].score;
+            bestMove = moves[i];
+          }
+        }
+      } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score < bestScore) {
+            bestScore = moves[i].score;
+            bestMove = moves[i];
+          }
+        }
+      }
+      return bestMove;
+    }
+
+    // 电脑移动
+    function aiMove() {
+      if (!gameActive) return;
+      const bestMove = minimax(board.slice(), ai);
+      makeMove(bestMove.index, ai);
+      const winner = checkWinner(board);
+      if (winner) {
+        endGame(winner);
+      } else {
+        updateMessage("你的回合：X");
+      }
+    }
+
+    // 重置游戏
+    function resetGame() {
+      board = ["", "", "", "", "", "", "", "", ""];
+      gameActive = true;
+      cells.forEach(cell => cell.textContent = "");
+      updateMessage("你的回合：X");
+    }
+
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+    resetButton.addEventListener('click', resetGame);
+  </script>
+</body>
+</html>
