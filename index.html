@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>井字棋 - 人机对战</title>
   <style>
+    /* 原井字棋样式 */
     body {
       font-family: Arial, sans-serif;
       text-align: center;
@@ -44,6 +45,71 @@
       font-size: 1em;
       cursor: pointer;
     }
+
+    /* 新增反馈系统样式 */
+    .feedback-toggle {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #e67e22;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      cursor: pointer;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1001;
+    }
+
+    .feedback-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(44, 62, 80, 0.95);
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      transform: translateX(110%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+
+    .feedback-container.active {
+      transform: translateX(0);
+    }
+
+    .feedback-form input,
+    .feedback-form textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 8px 0;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid #34495e;
+      border-radius: 4px;
+      color: white;
+    }
+
+    .feedback-form button {
+      background: #27ae60;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .status-message {
+      color: #2ecc71;
+      text-align: center;
+      margin-top: 10px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -62,30 +128,49 @@
   <div id="message">你的回合：X</div>
   <button id="reset">重新开始</button>
 
+  <!-- 新增反馈系统 -->
+  <button class="feedback-toggle">💬</button>
+  <div class="feedback-container">
+    <form class="feedback-form" id="feedbackForm"
+        action="https://api.web3forms.com/submit"
+        method="POST"
+        enctype="multipart/form-data">
+      
+      <input type="hidden" name="access_key" value="42f0c9fe-4dce-4ff2-9d54-fd4384369d9f">
+      <input type="hidden" name="_template" value="basic">
+      <input type="hidden" name="_subject" value="井字棋反馈">
+      <input type="hidden" name="_redirect" value="https://layne010.github.io/tic-tac-toe/">
+      <input type="hidden" name="to" value="512281371@qq.com">
+      
+      <input type="text" name="name" placeholder="昵称（可选）">
+      <input type="email" name="email" placeholder="邮箱（可选）">
+      <textarea name="message" rows="4" placeholder="您的建议..." required></textarea>
+      <button type="submit">发送反馈</button>
+      <div class="status-message" id="statusMessage">反馈已发送！感谢您的建议！</div>
+    </form>
+  </div>
+
   <script>
+    // 原井字棋游戏逻辑
     const cells = document.querySelectorAll('.cell');
     const messageEl = document.getElementById('message');
     const resetButton = document.getElementById('reset');
     
     let board = ["", "", "", "", "", "", "", "", ""];
     let gameActive = true;
-    // 玩家为 X，电脑为 O
     const human = "X";
     const ai = "O";
 
-    // 定义所有可能获胜组合
     const winningCombos = [
       [0,1,2],[3,4,5],[6,7,8],
       [0,3,6],[1,4,7],[2,5,8],
       [0,4,8],[2,4,6]
     ];
 
-    // 更新提示信息
     function updateMessage(msg) {
       messageEl.textContent = msg;
     }
 
-    // 检查当前棋盘是否有获胜者或平局
     function checkWinner(board) {
       for (let combo of winningCombos) {
         const [a, b, c] = combo;
@@ -96,7 +181,6 @@
       return board.includes("") ? null : "draw";
     }
 
-    // 处理玩家点击事件
     function handleCellClick(e) {
       const cell = e.target;
       const index = cell.getAttribute('data-index');
@@ -109,17 +193,14 @@
         return;
       }
       updateMessage("电脑思考中...");
-      // 延时调用电脑移动，模拟思考时间
       setTimeout(aiMove, 500);
     }
 
-    // 在指定位置落子并更新界面
     function makeMove(index, player) {
       board[index] = player;
       document.querySelector(`.cell[data-index='${index}']`).textContent = player;
     }
 
-    // 结束游戏
     function endGame(result) {
       if (result === "draw") {
         updateMessage("平局！");
@@ -129,7 +210,6 @@
       gameActive = false;
     }
 
-    // 获取空白位置索引
     function getAvailableMoves(board) {
       let moves = [];
       board.forEach((cell, idx) => {
@@ -138,7 +218,6 @@
       return moves;
     }
 
-    // Minimax 算法实现：返回 {score, index}
     function minimax(newBoard, player) {
       const availSpots = getAvailableMoves(newBoard);
       const winner = checkWinner(newBoard);
@@ -151,7 +230,6 @@
       for (let i = 0; i < availSpots.length; i++) {
         let move = {};
         move.index = availSpots[i];
-        // 暂存当前空格
         newBoard[availSpots[i]] = player;
 
         if (player === ai) {
@@ -161,7 +239,6 @@
           let result = minimax(newBoard, ai);
           move.score = result.score;
         }
-        // 撤销这次操作
         newBoard[availSpots[i]] = "";
         moves.push(move);
       }
@@ -187,7 +264,6 @@
       return bestMove;
     }
 
-    // 电脑移动
     function aiMove() {
       if (!gameActive) return;
       const bestMove = minimax(board.slice(), ai);
@@ -200,7 +276,6 @@
       }
     }
 
-    // 重置游戏
     function resetGame() {
       board = ["", "", "", "", "", "", "", "", ""];
       gameActive = true;
@@ -210,6 +285,50 @@
 
     cells.forEach(cell => cell.addEventListener('click', handleCellClick));
     resetButton.addEventListener('click', resetGame);
+
+    // 新增反馈系统逻辑
+    document.addEventListener('DOMContentLoaded', () => {
+      const feedbackToggle = document.querySelector('.feedback-toggle');
+      const feedbackContainer = document.querySelector('.feedback-container');
+      const form = document.getElementById('feedbackForm');
+      const statusMsg = document.getElementById('statusMessage');
+
+      feedbackToggle.addEventListener('click', () => {
+        feedbackContainer.classList.toggle('active');
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        statusMsg.style.display = 'none';
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'Accept': 'application/json' }
+          });
+
+          const data = await response.json();
+          
+          if (data.success) {
+            statusMsg.style.display = 'block';
+            form.reset();
+            setTimeout(() => {
+              feedbackContainer.classList.remove('active');
+              statusMsg.style.display = 'none';
+            }, 2000);
+          } else {
+            alert('提交失败：' + (data.message || '未知错误'));
+          }
+        } catch (error) {
+          alert('网络错误：请检查网络连接');
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+    });
   </script>
 </body>
 </html>
